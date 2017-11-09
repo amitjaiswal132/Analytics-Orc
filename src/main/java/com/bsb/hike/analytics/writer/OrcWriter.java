@@ -131,14 +131,12 @@ public class OrcWriter {
 	}
 	
 	private boolean convertToOrc() throws Exception {
-		boolean ret=false;
+		boolean status=false;
 		try {
 			File file = new File(this.srcPath);
 			BufferedReader bufferedReader = new BufferedReader(new InputStreamReader( new FileInputStream(file), "UTF8"));
 			String line;
-			int i=0;
 			while ((line = bufferedReader.readLine()) != null ) {
-				i=i+1;
 				String [] in = line.split("\\u0001");
 				Object[] olist = null;
 				try {
@@ -150,27 +148,20 @@ public class OrcWriter {
 					
 					OrcStruct orcLine = OrcUtils.createOrcStruct(typeInfo, olist);
 					orcWriter.addRow(orcLine);
-					if(i<10) {
-						logger.info("Data : "+line);
 						orcWriter.writeIntermediateFooter();
-							
-					}
-					if(i==2) {
-						break;
-					}
 					
 				}catch(Exception e) {
 					logger.error("logline : " + line);
 					logger.error("Failed to convert to Object "+ExceptionUtils.getStackTrace(e));
 				}
 			}
-			logger.info("closing the buffer reader");
 			bufferedReader.close();
+			status=true;
 		} catch (Exception e) {
-			logger.error(String.format("Exception in converting to Object array "+e.getStackTrace().toString()));
+			logger.error(String.format("Exception in converting ORC "+e.getStackTrace().toString()));
 			throw e;
 		}
-		return ret;
+		return status;
 	}
 	
 }
