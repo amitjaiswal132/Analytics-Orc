@@ -3,6 +3,8 @@ package com.bsb.hike.analytics.writer;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
+
+import org.apache.hadoop.hive.conf.HiveConf;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,10 +15,12 @@ public class OrcWriterTest {
     
 	@Test
 	public void convertToOrcTest() {
-		String srcPath = "OrcTestData1.text";
+		String srcPath = "OrcTestData.text";
 		ClassLoader classLoader = ClassLoader.getSystemClassLoader();
 		File srcFile = new File(classLoader.getResource(srcPath).getFile());
 		String destFile = srcFile.getAbsolutePath().replaceAll(".text", ".orc");
+		logger.info("Stripe size : "+HiveConf.ConfVars.HIVE_ORC_DEFAULT_STRIPE_SIZE.getDefaultValue());
+		logger.info("Buffer size : "+HiveConf.ConfVars.HIVE_ORC_DEFAULT_BUFFER_SIZE.getDefaultValue());
 		File orcFile=new File(destFile);
 		if(orcFile.exists()) {
 			orcFile.delete();

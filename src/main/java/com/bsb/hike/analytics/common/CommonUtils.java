@@ -1,6 +1,7 @@
 package com.bsb.hike.analytics.common;
 
 import java.sql.Timestamp;
+import java.util.Arrays;
 
 import org.apache.hadoop.hive.serde2.io.TimestampWritable;
 import org.apache.hadoop.io.IntWritable;
@@ -21,6 +22,9 @@ public class CommonUtils {
         
         if(inputs.length!=schema.length)
         	{
+        		logger.info("input length : "+inputs.length + " , schema.length:"+schema.length);
+        		logger.info("Input row \n"+Arrays.toString(inputs));
+        		
         		return null;
         }
         

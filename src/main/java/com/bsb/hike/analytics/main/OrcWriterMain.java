@@ -16,6 +16,7 @@ public class OrcWriterMain {
         		logger.info("Usage::OrcWriterMain srcFile destFile");
             System.exit(1);
         }
+		
 		try {
 			logger.info("Initiate Orc Writer ");
 			OrcWriter writer = new OrcWriter(args[0],args[1]);
