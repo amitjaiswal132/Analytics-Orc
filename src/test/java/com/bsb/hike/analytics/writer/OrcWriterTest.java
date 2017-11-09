@@ -13,8 +13,7 @@ public class OrcWriterTest {
     
 	@Test
 	public void convertToOrcTest() {
-		String srcPath = "OrcTestData.text";
-		//String srcPath = "Student.text";
+		String srcPath = "OrcTestData1.text";
 		ClassLoader classLoader = ClassLoader.getSystemClassLoader();
 		File srcFile = new File(classLoader.getResource(srcPath).getFile());
 		String destFile = srcFile.getAbsolutePath().replaceAll(".text", ".orc");
