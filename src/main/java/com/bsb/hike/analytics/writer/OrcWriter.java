@@ -98,6 +98,8 @@ public class OrcWriter {
 		try {
 			boolean status = convertToOrc();
 			if (status) {
+				//crc file is generated as part of the orc file with extention as orc.crc. 
+				//This needs to be cleaned up after orc conversion is done
 				new File(crcPath).delete();
 			}
 
@@ -133,9 +135,10 @@ public class OrcWriter {
 
 	private boolean convertToOrc() throws Exception {
 		boolean status = false;
+		BufferedReader bufferedReader = null;
 		try {
 			File file = new File(this.srcPath);
-			BufferedReader bufferedReader = new BufferedReader(
+			bufferedReader = new BufferedReader(
 					new InputStreamReader(new FileInputStream(file), "UTF8"));
 			String line;
 			while ((line = bufferedReader.readLine()) != null) {
@@ -153,8 +156,7 @@ public class OrcWriter {
 					orcWriter.addRow(orcLine);
 
 				} catch (Exception e) {
-					logger.error("logline : " + line);
-					logger.error("Failed to convert to Object " + ExceptionUtils.getStackTrace(e));
+					logger.error("Could not convert Logline to ORC : "+line , e.getMessage());
 				}
 			}
 			bufferedReader.close();
@@ -162,6 +164,10 @@ public class OrcWriter {
 		} catch (Exception e) {
 			logger.error(String.format("Exception in converting ORC " + e.getStackTrace().toString()));
 			throw e;
+		}finally {
+			if(bufferedReader!=null) {
+				bufferedReader.close();
+			}
 		}
 		return status;
 	}
