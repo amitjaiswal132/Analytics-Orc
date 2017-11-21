@@ -18,14 +18,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.ql.io.orc.Writer;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcStruct;
-import org.apache.hadoop.hive.conf.HiveConf;
-import org.apache.hadoop.hive.ql.io.orc.CompressionKind;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 
 import com.bsb.hike.analytics.common.CommonUtils;
-import com.bsb.hike.analytics.main.OrcWriterMain;
+import com.bsb.hike.analytics.common.PushMetrics;
+import com.bsb.hike.analytics.common.MetricsData;
+
 
 public class OrcWriter {
 
@@ -33,8 +33,6 @@ public class OrcWriter {
 	private String typeStr = "struct<row_id:string,phylum:string,class:string,order:string,family:string,genus:string,species:string,time_stamp:timestamp,rec_id:string,val_int:int,val_str:string,device_id:string,from_user:string,to_user:string,fr_country:string,to_country:string,fr_operator:string,to_operator:string,fr_circle:string,to_circle:string,user_state:int,variety:string,form:string,record_id:string,race:string,breed:string,division:string,section:string,tribe:string,series:string,census:bigint,population:bigint,capacities:bigint,states:bigint,cts:bigint,nwtype:int,app_ver:string,dev_type:string,dev_os:string,os_ver:string,source:string,msisdn:string,log_type:string,src_ip:string>";;
 	private TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(typeStr);;
 	private ObjectInspector inspector = OrcStruct.createObjectInspector(typeInfo);
-	private static final long STRIPE_SIZE = 100000;
-	private static final int BUFFER_SIZE = 100000;
 	private String[] schema = { "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "TIME_STAMP",
 			"STRING", "INT", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING",
 			"STRING", "INT", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING", "STRING",
@@ -46,9 +44,9 @@ public class OrcWriter {
 	private String crcPath;
 	private Writer orcWriter;
 	private boolean isWriterClosed = true;
+	private String fieldDelimiter = "\\u0001";
 
 	public OrcWriter(String srcPath, String destPath) throws IOException {
-		// TODO Auto-generated constructor stub
 		this.srcPath = srcPath;
 		this.destPath = destPath;
 		this.crcPath = Paths.get(destPath, ".crc").toString();
@@ -56,7 +54,6 @@ public class OrcWriter {
 	}
 
 	public OrcWriter(String srcPath, String destPath, String typeStr, String schema) throws IOException {
-		// TODO Auto-generated constructor stub
 		this.srcPath = srcPath;
 		this.destPath = destPath;
 		this.crcPath = Paths.get(destPath, ".crc").toString();
@@ -89,7 +86,6 @@ public class OrcWriter {
 		Path tempPath = new Path(this.destPath);
 		Configuration conf = new Configuration();
 		orcWriter = OrcFile.createWriter(tempPath, OrcFile.writerOptions(conf).inspector(inspector));
-		// .stripeSize(STRIPE_SIZE).bufferSize(BUFFER_SIZE));
 		// mark writer as open
 		this.isWriterClosed = false;
 	}
@@ -105,7 +101,7 @@ public class OrcWriter {
 
 		} catch (Exception e) {
 			logger.error("Failed to convert to Orc file. Cleanup Orc file in any case" + destPath + " " + e.getMessage()
-					+ ", " + ExceptionUtils.getStackTrace(e));
+			+ ", " + ExceptionUtils.getStackTrace(e));
 			try {
 				File orcFile = new File(destPath);
 				File crcFile = new File(crcPath);
@@ -126,7 +122,6 @@ public class OrcWriter {
 	}
 
 	public void close() throws IOException {
-		// TODO Auto-generated method stub
 		if (!this.isWriterClosed) {
 			orcWriter.close();
 		}
@@ -135,18 +130,24 @@ public class OrcWriter {
 
 	private boolean convertToOrc() throws Exception {
 		boolean status = false;
+		long recordCount = 0;
+		long errorCount = 0;
+		long orcRecordCount=0;
+		File file = null;
 		BufferedReader bufferedReader = null;
 		try {
-			File file = new File(this.srcPath);
+			file = new File(this.srcPath);
 			bufferedReader = new BufferedReader(
 					new InputStreamReader(new FileInputStream(file), "UTF8"));
 			String line;
 			while ((line = bufferedReader.readLine()) != null) {
-				String[] in = line.split("\\u0001");
+				recordCount++;
+				String[] in = line.split(fieldDelimiter);
 				Object[] olist = null;
 				try {
 					olist = CommonUtils.getOrcWritableObjects(in, schema);
 					if (olist == null) {
+						errorCount++;
 						logger.info(
 								"Object return is null. logline : " + in.length + " # " + this.srcPath + " #" + line);
 						continue;
@@ -154,8 +155,11 @@ public class OrcWriter {
 
 					OrcStruct orcLine = OrcUtils.createOrcStruct(typeInfo, olist);
 					orcWriter.addRow(orcLine);
+					orcRecordCount++;
+
 
 				} catch (Exception e) {
+					errorCount++;
 					logger.error("Could not convert Logline to ORC : "+line , e.getMessage());
 				}
 			}
@@ -169,6 +173,14 @@ public class OrcWriter {
 				bufferedReader.close();
 			}
 		}
+
+		MetricsData recordCountMD = MetricsData.set("ap.kafka.upload.analytic.streaming.orc.record.count", recordCount, null, file.getAbsolutePath());
+		MetricsData errorCountMD = MetricsData.set("ap.kafka.upload.analytic.streaming.orc.error.count", errorCount, null, file.getAbsolutePath());
+		MetricsData orcCountMD = MetricsData.set("ap.kafka.upload.analytic.streaming.orc.orcrecord.count", orcRecordCount, null, file.getAbsolutePath());
+		PushMetrics.send(recordCountMD);
+		PushMetrics.send(errorCountMD);
+		PushMetrics.send(orcCountMD);
+
 		return status;
 	}
 
