@@ -101,7 +101,7 @@ public class OrcWriter {
 
 		} catch (Exception e) {
 			logger.error("Failed to convert to Orc file. Cleanup Orc file in any case" + destPath + " " + e.getMessage()
-			+ ", " + ExceptionUtils.getStackTrace(e));
+					+ ", " + ExceptionUtils.getStackTrace(e));
 			try {
 				File orcFile = new File(destPath);
 				File crcFile = new File(crcPath);
@@ -156,7 +156,7 @@ public class OrcWriter {
 					OrcStruct orcLine = OrcUtils.createOrcStruct(typeInfo, olist);
 					orcWriter.addRow(orcLine);
 					orcRecordCount++;
-
+					
 
 				} catch (Exception e) {
 					errorCount++;
@@ -173,15 +173,19 @@ public class OrcWriter {
 				bufferedReader.close();
 			}
 		}
-
+		
 		MetricsData recordCountMD = MetricsData.set("ap.kafka.upload.analytic.streaming.orc.record.count", recordCount, null, file.getAbsolutePath());
 		MetricsData errorCountMD = MetricsData.set("ap.kafka.upload.analytic.streaming.orc.error.count", errorCount, null, file.getAbsolutePath());
 		MetricsData orcCountMD = MetricsData.set("ap.kafka.upload.analytic.streaming.orc.orcrecord.count", orcRecordCount, null, file.getAbsolutePath());
-		PushMetrics.send(recordCountMD);
-		PushMetrics.send(errorCountMD);
-		PushMetrics.send(orcCountMD);
-
+		logger.info(this.srcPath + " record count "+recordCountMD);
+		logger.info(this.srcPath + " error count "+errorCountMD);
+		logger.info(this.srcPath + " #record count "+recordCount+ " error count "+errorCount + " orc count"+orcRecordCount );
+        //PushMetrics.send(recordCountMD);
+        //PushMetrics.send(errorCountMD);
+        //PushMetrics.send(orcCountMD);
+        
 		return status;
 	}
 
 }
+
